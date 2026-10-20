@@ -7,21 +7,26 @@ const circuits={
  technical:[[115,132],[290,120],[425,128],[470,185],[414,228],[322,206],[292,272],[370,319],[470,283],[600,247],[700,287],[664,385],[518,408],[425,371],[300,415],[163,381],[100,314],[174,247],[102,203]],
  grand:[[105,160],[225,118],[415,118],[490,156],[645,122],[708,177],[665,237],[560,260],[602,318],[701,342],[650,402],[510,408],[445,361],[357,388],[245,422],[116,381],[91,312],[170,273],[135,224]]
 };
-const tyres={soft:{grip:1.20,wear:.013},medium:{grip:1.06,wear:.008},hard:{grip:.95,wear:.0045}};
+const tyres={soft:{grip:1.17,wear:33},medium:{grip:1.04,wear:23},hard:{grip:.94,wear:15}};
 const state={running:false,finished:false,started:false,distance:0,speed:0,battery:80,aero:'LOW DRAG',time:0,lapStart:0,laps:[],best:Infinity,tyreWear:0,offTrack:0,incidentCooldown:0,incidents:0};
 const input={gas:false,brake:false,boost:false};let points=[],length=0,prev=null,boosting=false;
 function makeTrack(){const anchors=circuits[$('circuit').value],samples=[];for(let i=0;i<anchors.length;i++){const p0=anchors[(i-1+anchors.length)%anchors.length],p1=anchors[i],p2=anchors[(i+1)%anchors.length],p3=anchors[(i+2)%anchors.length];for(let j=0;j<24;j++){let t=j/24,t2=t*t,t3=t2*t;let coord=k=>.5*((2*p1[k])+(-p0[k]+p2[k])*t+(2*p0[k]-5*p1[k]+4*p2[k]-p3[k])*t2+(-p0[k]+3*p1[k]-3*p2[k]+p3[k])*t3);samples.push({x:coord(0),y:coord(1)})}}points=[];length=0;for(let i=0;i<samples.length;i++){const a=samples[i],b=samples[(i+1)%samples.length];let segment=Math.hypot(b.x-a.x,b.y-a.y);points.push({...a,d:length,seg:segment});length+=segment}draw()}
 function pos(distance){let d=((distance%length)+length)%length;let lo=0,hi=points.length-1;while(lo<hi){let mid=(lo+hi+1)>>1;if(points[mid].d<=d)lo=mid;else hi=mid-1}const a=points[lo],b=points[(lo+1)%points.length],t=Math.min(1,(d-a.d)/Math.max(a.seg,.0001));return{x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,angle:Math.atan2(b.y-a.y,b.x-a.x),index:lo}}
 function cornerSeverity(distance){
- // Heading change over a 55 m window gives a continuous estimate of bend severity.
- const before=pos(distance-27.5),after=pos(distance+27.5);
- const delta=Math.atan2(Math.sin(after.angle-before.angle),Math.cos(after.angle-before.angle));
- return Math.abs(delta);
+ // Use the maximum heading change around the upcoming corner, not a single
+ // small-angle sample that can miss the apex between animation frames.
+ let peak=0;
+ for(let look=-12;look<=45;look+=9){
+   const a=pos(distance+look-18),b=pos(distance+look+18);
+   const delta=Math.atan2(Math.sin(b.angle-a.angle),Math.cos(b.angle-a.angle));
+   peak=Math.max(peak,Math.abs(delta));
+ }
+ return peak;
 }
 function cornerLimit(severity,grip,downforce){
- // Gentle bends allow racing speeds; hairpins demand heavy braking.
- const base=severity<.12?355:Math.max(68,255/(1+severity*2.4));
- return Math.min(355,base*grip*(downforce?1.16:1));
+ // All speeds are game-scaled km/h; tight corners demand real braking.
+ const base=severity<.055?355:Math.max(52,205/(1+severity*4.5));
+ return Math.min(355,base*grip*(downforce?1.25:1));
 }
 function draw(){ctx.fillStyle='#28503a';ctx.fillRect(0,0,800,520);
 // Trackside gravel and runoff add circuit depth without affecting the physics.
@@ -32,13 +37,13 @@ function fmt(s){if(!Number.isFinite(s))return '--:--.---';const m=Math.floor(s*1
 function history(){let h=$('history');h.replaceChildren();state.laps.forEach((v,i)=>{let r=document.createElement('div');r.className='laprow'+(v===state.best?' best':'');let a=document.createElement('span'),b=document.createElement('b');a.textContent='LAP '+(i+1)+(v===state.best?' · BEST':'');b.textContent=fmt(v);r.append(a,b);h.append(r)})}
 function update(dt){
  const compound=tyres[$('tyres').value]||tyres.medium;
- const severity=cornerSeverity(state.distance+Math.max(15,state.speed/3.6*.55));
- const grip=compound.grip*Math.max(.52,1-.006*state.tyreWear);
+ const severity=cornerSeverity(state.distance+Math.max(6,state.speed/3.6*.28));
+ const grip=compound.grip*Math.max(.43,1-.0075*state.tyreWear);
  const limit=cornerLimit(severity,grip,state.aero==='HIGH DOWNFORCE');
  state.incidentCooldown=Math.max(0,state.incidentCooldown-dt);
  if(state.offTrack>0){
    state.offTrack=Math.max(0,state.offTrack-dt);
-   state.speed=Math.max(0,state.speed-180*dt);
+   state.speed=Math.max(0,state.speed-240*dt);
    state.time+=dt;
    $('status').textContent='OFF TRACK! Lost time in runoff · brake earlier next lap.';
  }else{
@@ -50,16 +55,21 @@ function update(dt){
    state.speed=Math.max(0,Math.min(355,state.speed+acceleration*dt));
    // Tyres degrade with distance, and overdriving accelerates wear.
    const overspeed=Math.max(0,state.speed-limit);
-   state.tyreWear=Math.min(100,state.tyreWear+state.speed/3.6*dt*compound.wear*(1+Math.min(4,overspeed/35)));
-   if(severity>.12&&overspeed>18&&state.incidentCooldown<=0){
+   // Wear is measured per completed circuit, so it matters over three laps.
+   // Soft tyres typically finish three laps heavily worn; hard tyres last longer.
+   const fractionOfLap=state.speed/3.6*dt/Math.max(1,length);
+   state.tyreWear=Math.min(100,state.tyreWear+
+     fractionOfLap*compound.wear*(1+Math.min(1.3,overspeed/95)+
+     (severity>.065?.18:0)));
+   if(severity>.065&&overspeed>12&&state.incidentCooldown<=0){
      state.incidents++;
-     state.offTrack=Math.min(2.8,1.1+overspeed/95);
+     state.offTrack=Math.min(3.2,1.5+overspeed/85);
      state.incidentCooldown=2.8;
-     state.speed=Math.min(state.speed,Math.max(25,limit*.48));
+     state.speed=Math.min(state.speed,Math.max(18,limit*.38));
      boosting=false;
      $('status').textContent='OFF TRACK! Corner entered too fast · '+state.offTrack.toFixed(1)+'s lost.';
    }else{
-     $('status').textContent=severity>.12?
+     $('status').textContent=severity>.065?
        ('CORNER · safe speed ~'+Math.round(limit)+' km/h · '+(overspeed>0?'BRAKE NOW!':'hold your line')):
        (boosting?'MGU-K DEPLOYED · strong acceleration!':'STRAIGHT · low drag reduces resistance');
    }
@@ -76,7 +86,7 @@ function update(dt){
      if(state.laps.length===3){finish();return}
    }
  }
- $('tyreWear').textContent=Math.round(state.tyreWear)+'%';
+ $('tyreWear').textContent=Math.round(state.tyreWear)+'%';$('tyreWear').style.color=state.tyreWear>=65?'#ff5353':state.tyreWear>=35?'#ffb347':'#a8f1b0';
  $('lap').textContent=(state.laps.length+1)+' / 3';
  $('current').textContent=fmt(state.time-state.lapStart);
  $('best').textContent=fmt(state.best);
@@ -87,7 +97,7 @@ function update(dt){
 }
 function frame(t){if(!state.running)return;if(prev===null)prev=t;let dt=Math.min((t-prev)/1000,.04);prev=t;update(dt);draw();if(state.running)requestAnimationFrame(frame)}
 function finish(){state.running=false;state.finished=true;boosting=false;Object.keys(input).forEach(k=>input[k]=false);$('quit').hidden=true;$('overlay').hidden=false;$('overlayText').textContent='FINISHED · BEST LAP '+fmt(state.best);window.dispatchEvent(new CustomEvent('f1-race-finished',{detail:{name:$('name').value.trim()||'Driver',track:$('circuit').value,time:state.best}}));$('start').textContent='RACE AGAIN';$('circuit').disabled=false;$('name').disabled=false;$('tyres').disabled=false;draw()}
-function start(){state.running=true;state.finished=false;state.distance=0;state.speed=0;state.battery=80;state.aero='LOW DRAG';state.time=0;state.lapStart=0;state.laps=[];state.best=Infinity;state.tyreWear=0;state.offTrack=0;state.incidentCooldown=0;state.incidents=0;$('tyreWear').textContent='0%';prev=null;boosting=false;Object.keys(input).forEach(k=>input[k]=false);$('aero').innerHTML='AERO<br><small>LOW DRAG</small>';$('current').textContent='0:00.000';$('best').textContent='--:--.---';$('lap').textContent='1 / 3';$('history').textContent='No completed laps yet';$('circuit').disabled=true;$('name').disabled=true;$('tyres').disabled=true;$('overlay').hidden=true;$('quit').hidden=false;requestAnimationFrame(frame)}
+function start(){state.running=true;state.finished=false;state.distance=0;state.speed=0;state.battery=80;state.aero='LOW DRAG';state.time=0;state.lapStart=0;state.laps=[];state.best=Infinity;state.tyreWear=0;state.offTrack=0;state.incidentCooldown=0;state.incidents=0;$('tyreWear').textContent='0%';prev=null;boosting=false;Object.keys(input).forEach(k=>input[k]=false);$('aero').innerHTML='AERO<br><small>LOW DRAG</small>';$('aero').classList.remove('active');$('current').textContent='0:00.000';$('best').textContent='--:--.---';$('lap').textContent='1 / 3';$('history').textContent='No completed laps yet';$('circuit').disabled=true;$('name').disabled=true;$('tyres').disabled=true;$('overlay').hidden=true;$('quit').hidden=false;requestAnimationFrame(frame)}
 function quitRace(){
  if(!state.running)return;
  const abandonedLap=Math.min(3,state.laps.length+1);
@@ -110,5 +120,14 @@ function quitRace(){
 $('quit').addEventListener('click',quitRace);
 $('start').addEventListener('click',start);$('circuit').addEventListener('change',()=>{if(!state.running){state.distance=0;makeTrack()}});
 function hold(id,key){const el=$(id);el.addEventListener('pointerdown',e=>{e.preventDefault();if(!state.running)return;el.setPointerCapture(e.pointerId);input[key]=true});for(const ev of ['pointerup','pointercancel','lostpointercapture'])el.addEventListener(ev,()=>input[key]=false)}hold('gas','gas');hold('brake','brake');hold('boost','boost');
-$('aero').addEventListener('click',()=>{if(!state.running)return;state.aero=state.aero==='LOW DRAG'?'HIGH DOWNFORCE':'LOW DRAG';$('aero').innerHTML='AERO<br><small>'+state.aero+'</small>'});
+function toggleAero(){
+ if(!state.running)return;
+ state.aero=state.aero==='LOW DRAG'?'HIGH DOWNFORCE':'LOW DRAG';
+ $('aero').innerHTML='AERO<br><small>'+state.aero+'</small>';
+ $('aero').classList.toggle('active',state.aero==='HIGH DOWNFORCE');
+ $('status').textContent=state.aero==='HIGH DOWNFORCE'
+   ?'HIGH DOWNFORCE ON · higher corner grip, more drag'
+   :'LOW DRAG ON · faster straights, less corner grip';
+}
+$('aero').addEventListener('click',toggleAero);
 const keys={ArrowUp:'gas',ArrowDown:'brake',' ':'boost'};document.addEventListener('keydown',e=>{if(!state.running)return;if(keys[e.key]){e.preventDefault();input[keys[e.key]]=true}if(e.key.toLowerCase()==='a'&&!e.repeat)$('aero').click()});document.addEventListener('keyup',e=>{if(keys[e.key])input[keys[e.key]]=false});window.addEventListener('blur',()=>Object.keys(input).forEach(k=>input[k]=false));makeTrack();
