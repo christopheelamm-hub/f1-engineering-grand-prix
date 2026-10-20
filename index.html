@@ -1,0 +1,62 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>F1 Engineering Grand Prix</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <h1>F1 ENGINEERING GRAND PRIX</h1>
+    <p>Race faster. Think like an engineer.</p>
+  </header>
+
+  <section id="start-screen">
+    <h2>JOIN THE RACE</h2>
+
+    <input type="text" id="player-name"
+           placeholder="Enter your driver name"
+           maxlength="16">
+
+    <label for="car-color">Choose your car color</label>
+    <input type="color" id="car-color" value="#ff3030">
+
+    <button id="start-btn">START RACE</button>
+  </section>
+
+  <section id="game-screen" hidden>
+
+    <div class="dashboard">
+      <div>Lap: <span id="lap">1 / 3</span></div>
+      <div>Speed: <span id="speed">0</span> km/h</div>
+      <div>Battery: <span id="battery">100</span>%</div>
+      <div>Time: <span id="timer">0.00</span>s</div>
+    </div>
+
+    <canvas id="track" width="900" height="550"></canvas>
+
+    <div class="controls">
+      <button id="accelerate">ACCELERATE</button>
+      <button id="brake">BRAKE + RECHARGE</button>
+      <button id="boost">MGU-K BOOST</button>
+      <button id="aero">LOW DRAG</button>
+    </div>
+
+    <p id="race-message">
+      Use low drag on straights and high downforce in corners.
+    </p>
+
+  </section>
+
+  <section id="results-screen" hidden>
+    <h2>CHEQUERED FLAG!</h2>
+    <h3 id="final-time"></h3>
+    <button onclick="location.reload()">RACE AGAIN</button>
+  </section>
+
+  <script src="game.js"></script>
+</body>
+</html>
