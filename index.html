@@ -3,60 +3,88 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
   <title>F1 Engineering Grand Prix</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <header>
-    <h1>F1 ENGINEERING GRAND PRIX</h1>
-    <p>Race faster. Think like an engineer.</p>
-  </header>
+<header>
+  <h1>F1 ENGINEERING GRAND PRIX</h1>
+  <p>Three laps. One fastest time. Think like an engineer.</p>
+</header>
 
-  <section id="start-screen">
-    <h2>JOIN THE RACE</h2>
+<section id="start-screen">
+  <h2>JOIN THE TIME ATTACK</h2>
 
-    <input type="text" id="player-name"
-           placeholder="Enter your driver name"
-           maxlength="16">
+  <input id="player-name" type="text"
+         placeholder="Driver name" maxlength="16">
 
-    <label for="car-color">Choose your car color</label>
-    <input type="color" id="car-color" value="#ff3030">
+  <label for="car-color">Choose your car color</label>
+  <input id="car-color" type="color" value="#ff3030">
 
-    <button id="start-btn">START RACE</button>
-  </section>
+  <p>Set your fastest lap in three attempts!</p>
+  <button id="start-btn">START RACE</button>
+</section>
 
-  <section id="game-screen" hidden>
+<section id="game-screen" hidden>
 
-    <div class="dashboard">
-      <div>Lap: <span id="lap">1 / 3</span></div>
-      <div>Speed: <span id="speed">0</span> km/h</div>
-      <div>Battery: <span id="battery">100</span>%</div>
-      <div>Time: <span id="timer">0.00</span>s</div>
+  <div class="dashboard">
+    <div>LAP <span id="lap">1 / 3</span></div>
+    <div>SPEED <span id="speed">0</span> km/h</div>
+    <div>BATTERY <span id="battery">80</span>%</div>
+    <div>BOOST <span id="boost-status">READY</span></div>
+  </div>
+
+  <div class="timing-panel">
+    <div class="timing-box">
+      <small>CURRENT LAP</small>
+      <strong id="timer">0:00.000</strong>
     </div>
 
-    <canvas id="track" width="900" height="550"></canvas>
-
-    <div class="controls">
-      <button id="accelerate">ACCELERATE</button>
-      <button id="brake">BRAKE + RECHARGE</button>
-      <button id="boost">MGU-K BOOST</button>
-      <button id="aero">LOW DRAG</button>
+    <div class="timing-box">
+      <small>BEST LAP</small>
+      <strong id="best-lap">--:--.---</strong>
     </div>
+  </div>
 
-    <p id="race-message">
-      Use low drag on straights and high downforce in corners.
-    </p>
+  <canvas id="track" width="900" height="550"></canvas>
 
-  </section>
+  <div class="controls">
+    <button id="accelerate">ACCELERATE</button>
+    <button id="brake">BRAKE + RECHARGE</button>
+    <button id="boost">MGU-K BOOST</button>
+    <button id="aero">LOW DRAG</button>
+  </div>
 
-  <section id="results-screen" hidden>
-    <h2>CHEQUERED FLAG!</h2>
-    <h3 id="final-time"></h3>
-    <button onclick="location.reload()">RACE AGAIN</button>
-  </section>
+  <p id="race-message">
+    Accelerate on straights. Brake before corners.
+  </p>
 
-  <script src="game.js"></script>
+  <div class="lap-history">
+    <h3>LAP HISTORY</h3>
+    <div id="lap-list">
+      <p>Complete your first lap to see your times.</p>
+    </div>
+  </div>
+
+</section>
+
+<section id="results-screen" hidden>
+  <h2>CHEQUERED FLAG!</h2>
+  <p id="driver-result"></p>
+
+  <h3>YOUR FASTEST LAP</h3>
+  <h2 id="final-time"></h2>
+
+  <div id="final-laps"></div>
+
+  <p id="personal-record"></p>
+
+  <button onclick="location.reload()">RACE AGAIN</button>
+</section>
+
+<script src="game.js"></script>
 </body>
 </html>
