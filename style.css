@@ -26,3 +26,11 @@
  .race-actions{position:fixed;top:8px;right:8px;z-index:30;margin:0}
  #quit{box-shadow:0 3px 14px #000b;padding:11px 14px;background:#b51c30}
 }
+
+/* Version 9: Quit is placed directly on the circuit and stays above controls */
+#quit{position:absolute;top:10px;right:10px;z-index:25;min-height:48px;padding:12px 18px;
+ background:#d72239;color:#fff;touch-action:manipulation;pointer-events:auto;
+ box-shadow:0 4px 15px #000a;border:2px solid #ff9da9}
+#quit[hidden]{display:none!important}
+@media(max-width:650px){#quit{position:absolute;top:8px;right:8px;z-index:25;
+ min-height:44px;padding:9px 12px;font-size:12px}}

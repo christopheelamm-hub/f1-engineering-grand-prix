@@ -1,16 +1,11 @@
-F1 Engineering GP — V8 Physics and Controls Fix
+F1 ENGINEERING GP — V9 (QUIT + PROPORTIONAL SPEED PENALTY)
 
-Upload all five files to the ROOT of the same GitHub repository.
-Then open index.html?v=8 and force refresh.
-
-Fixes:
-- QUIT RACE stays visible at the top right on mobile during any lap.
-- AERO toggles between LOW DRAG and HIGH DOWNFORCE, with visible purple
-  active state and an immediate status message.
-- Upcoming corners use wider heading samples and much lower safe speeds;
-  driving too fast triggers a 1.5–3.2 second off-track incident.
-- Tyre wear is scaled to track distance: soft ~99%, medium ~69%,
-  hard ~45% after 3 clean laps, with additional wear for overdriving.
-- Existing Firebase leaderboard module and track IDs are unchanged.
-
-These are simplified arcade physics, not a calibrated F1 vehicle simulator.
+Replace ALL five files in GitHub repository ROOT; commit. Test index.html?v=9.
+QUIT RACE now appears inside the track and responds immediately to pointerdown;
+works during any lap and resets the race without publishing a leaderboard score.
+When above the speed appropriate for an approaching bend, velocity now bleeds
+away smoothly in proportion to overspeed, rather than an instant speed cap or
+an off-track lockout. Repeated excessive acceleration keeps causing speed loss.
+The current status line displays the overspeed and rate of loss.
+Tyre wear model and Firestore integration are preserved from v8.
+This is an intentionally simplified arcade simulation.

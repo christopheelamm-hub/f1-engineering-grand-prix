@@ -37,56 +37,51 @@ function fmt(s){if(!Number.isFinite(s))return '--:--.---';const m=Math.floor(s*1
 function history(){let h=$('history');h.replaceChildren();state.laps.forEach((v,i)=>{let r=document.createElement('div');r.className='laprow'+(v===state.best?' best':'');let a=document.createElement('span'),b=document.createElement('b');a.textContent='LAP '+(i+1)+(v===state.best?' · BEST':'');b.textContent=fmt(v);r.append(a,b);h.append(r)})}
 function update(dt){
  const compound=tyres[$('tyres').value]||tyres.medium;
- const severity=cornerSeverity(state.distance+Math.max(6,state.speed/3.6*.28));
+ const severity=cornerSeverity(state.distance+Math.max(6,state.speed/3.6*.40));
  const grip=compound.grip*Math.max(.43,1-.0075*state.tyreWear);
  const limit=cornerLimit(severity,grip,state.aero==='HIGH DOWNFORCE');
- state.incidentCooldown=Math.max(0,state.incidentCooldown-dt);
- if(state.offTrack>0){
-   state.offTrack=Math.max(0,state.offTrack-dt);
-   state.speed=Math.max(0,state.speed-240*dt);
-   state.time+=dt;
-   $('status').textContent='OFF TRACK! Lost time in runoff · brake earlier next lap.';
+ let acceleration=input.gas?40:0;
+ acceleration-=(state.aero==='LOW DRAG'?.00012:.0003)*state.speed*state.speed;
+ if(input.brake){acceleration-=115;if(state.speed>10)state.battery=Math.min(100,state.battery+35*dt)}
+ boosting=input.boost&&input.gas&&!input.brake&&state.battery>0;
+ if(boosting){acceleration+=115;state.battery=Math.max(0,state.battery-38*dt)}
+ state.speed=Math.max(0,Math.min(355,state.speed+acceleration*dt));
+
+ // Progressive cornering penalty: the more the car exceeds the safe corner
+ // speed, the greater the loss of speed. No teleport, instant cap, or timeout.
+ const overspeed=Math.max(0,state.speed-limit);
+ const activeCorner=severity>.055;
+ if(activeCorner&&overspeed>0){
+   const ratio=overspeed/Math.max(limit,1);
+   const strength=1.8+Math.min(4,ratio*4)+Math.min(2,severity*2);
+   const loss=overspeed*(1-Math.exp(-strength*dt));
+   state.speed=Math.max(0,state.speed-loss);
+   $('status').textContent='TOO FAST FOR CORNER · '+Math.round(overspeed)+
+     ' km/h over safe speed! Losing '+Math.round(loss/Math.max(dt,.001))+' km/h per second';
+ }else if(activeCorner){
+   $('status').textContent='CORNER · safe speed ~'+Math.round(limit)+' km/h · controlled entry';
  }else{
-   let acceleration=input.gas?40:0;
-   acceleration-=(state.aero==='LOW DRAG'?.00012:.0003)*state.speed*state.speed;
-   if(input.brake){acceleration-=115;if(state.speed>10)state.battery=Math.min(100,state.battery+35*dt)}
-   boosting=input.boost&&input.gas&&!input.brake&&state.battery>0;
-   if(boosting){acceleration+=115;state.battery=Math.max(0,state.battery-38*dt)}
-   state.speed=Math.max(0,Math.min(355,state.speed+acceleration*dt));
-   // Tyres degrade with distance, and overdriving accelerates wear.
-   const overspeed=Math.max(0,state.speed-limit);
-   // Wear is measured per completed circuit, so it matters over three laps.
-   // Soft tyres typically finish three laps heavily worn; hard tyres last longer.
-   const fractionOfLap=state.speed/3.6*dt/Math.max(1,length);
-   state.tyreWear=Math.min(100,state.tyreWear+
-     fractionOfLap*compound.wear*(1+Math.min(1.3,overspeed/95)+
-     (severity>.065?.18:0)));
-   if(severity>.065&&overspeed>12&&state.incidentCooldown<=0){
-     state.incidents++;
-     state.offTrack=Math.min(3.2,1.5+overspeed/85);
-     state.incidentCooldown=2.8;
-     state.speed=Math.min(state.speed,Math.max(18,limit*.38));
-     boosting=false;
-     $('status').textContent='OFF TRACK! Corner entered too fast · '+state.offTrack.toFixed(1)+'s lost.';
-   }else{
-     $('status').textContent=severity>.065?
-       ('CORNER · safe speed ~'+Math.round(limit)+' km/h · '+(overspeed>0?'BRAKE NOW!':'hold your line')):
-       (boosting?'MGU-K DEPLOYED · strong acceleration!':'STRAIGHT · low drag reduces resistance');
-   }
-   const old=state.distance;
-   state.distance+=state.speed/3.6*dt;
-   state.time+=dt;
-   if(Math.floor(state.distance/length)>Math.floor(old/length)){
-     const crossing=(Math.floor(old/length)+1)*length;
-     const f=(crossing-old)/(state.distance-old);
-     const crossingTime=state.time-dt+f*dt;
-     const lapTime=crossingTime-state.lapStart;
-     state.lapStart=crossingTime;state.laps.push(lapTime);
-     state.best=Math.min(state.best,lapTime);history();
-     if(state.laps.length===3){finish();return}
-   }
+   $('status').textContent=boosting?'MGU-K DEPLOYED · strong acceleration!':
+     (state.aero==='HIGH DOWNFORCE'?'HIGH DOWNFORCE · extra grip, greater drag':
+      'STRAIGHT · low drag reduces resistance');
  }
- $('tyreWear').textContent=Math.round(state.tyreWear)+'%';$('tyreWear').style.color=state.tyreWear>=65?'#ff5353':state.tyreWear>=35?'#ffb347':'#a8f1b0';
+ const fractionOfLap=state.speed/3.6*dt/Math.max(1,length);
+ state.tyreWear=Math.min(100,state.tyreWear+fractionOfLap*compound.wear*
+   (1+Math.min(1.3,overspeed/95)+(activeCorner?.18:0)));
+ const old=state.distance;
+ state.distance+=state.speed/3.6*dt;
+ state.time+=dt;
+ if(Math.floor(state.distance/length)>Math.floor(old/length)){
+   const crossing=(Math.floor(old/length)+1)*length;
+   const f=(crossing-old)/(state.distance-old);
+   const crossingTime=state.time-dt+f*dt;
+   const lapTime=crossingTime-state.lapStart;
+   state.lapStart=crossingTime;state.laps.push(lapTime);
+   state.best=Math.min(state.best,lapTime);history();
+   if(state.laps.length===3){finish();return}
+ }
+ $('tyreWear').textContent=Math.round(state.tyreWear)+'%';
+ $('tyreWear').style.color=state.tyreWear>=65?'#ff5353':state.tyreWear>=35?'#ffb347':'#a8f1b0';
  $('lap').textContent=(state.laps.length+1)+' / 3';
  $('current').textContent=fmt(state.time-state.lapStart);
  $('best').textContent=fmt(state.best);
@@ -117,7 +112,12 @@ function quitRace(){
  $('status').textContent='Race abandoned. No lap time was submitted.';
  draw();
 }
-$('quit').addEventListener('click',quitRace);
+// Touch-first quit handling. Pointerdown runs immediately, without waiting for
+// synthetic click events; keyboard activation still works through click.
+const quitButton=$('quit');
+quitButton.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();quitRace()});
+quitButton.addEventListener('click',e=>{e.preventDefault();quitRace()});
+
 $('start').addEventListener('click',start);$('circuit').addEventListener('change',()=>{if(!state.running){state.distance=0;makeTrack()}});
 function hold(id,key){const el=$(id);el.addEventListener('pointerdown',e=>{e.preventDefault();if(!state.running)return;el.setPointerCapture(e.pointerId);input[key]=true});for(const ev of ['pointerup','pointercancel','lostpointercapture'])el.addEventListener(ev,()=>input[key]=false)}hold('gas','gas');hold('brake','brake');hold('boost','boost');
 function toggleAero(){
