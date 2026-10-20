@@ -5,7 +5,7 @@
 
 body {
   margin: 0;
-  padding: 20px;
+  padding: 18px;
   background: #101116;
   color: white;
   font-family: Arial, sans-serif;
@@ -13,16 +13,16 @@ body {
 }
 
 header {
-  margin-bottom: 25px;
+  margin-bottom: 22px;
 }
 
 h1 {
   color: #ff3030;
-  font-size: clamp(24px, 5vw, 42px);
-  letter-spacing: 2px;
+  font-size: clamp(23px, 5vw, 40px);
+  letter-spacing: 1px;
 }
 
-header p {
+header p, small {
   color: #aaa;
 }
 
@@ -35,21 +35,19 @@ section {
   display: none !important;
 }
 
-/* PLAYER REGISTRATION */
-
-#start-screen {
+#start-screen, #results-screen {
+  max-width: 460px;
   background: #1c1e26;
-  padding: 35px;
+  padding: 30px;
   border-radius: 15px;
-  max-width: 450px;
 }
 
 input {
   display: block;
-  margin: 20px auto;
-  padding: 12px;
   width: 90%;
   max-width: 300px;
+  padding: 12px;
+  margin: 20px auto;
   border: 1px solid #555;
   border-radius: 8px;
   background: #101116;
@@ -59,18 +57,15 @@ input {
 
 input[type="color"] {
   height: 55px;
-  cursor: pointer;
 }
 
-/* BUTTONS */
-
 button {
-  padding: 16px 20px;
+  padding: 16px;
   background: #e10600;
   color: white;
   border: none;
   border-radius: 10px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: bold;
   cursor: pointer;
   touch-action: none;
@@ -78,31 +73,59 @@ button {
 }
 
 button:active {
-  transform: scale(0.96);
-  background: #a80000;
+  transform: scale(0.97);
 }
 
 #start-btn {
   width: 90%;
 }
 
-/* RACING DASHBOARD */
-
 .dashboard {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
 }
 
 .dashboard div {
   background: #20232d;
-  padding: 15px 5px;
+  padding: 13px 5px;
   border-radius: 8px;
+  font-size: 14px;
+}
+
+.dashboard span {
+  color: #ffffff;
   font-weight: bold;
 }
 
-/* CIRCUIT */
+.timing-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.timing-box {
+  background: #20232d;
+  padding: 17px 10px;
+  border-radius: 10px;
+}
+
+.timing-box small {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.timing-box strong {
+  display: block;
+  font-size: clamp(22px, 5vw, 36px);
+  font-variant-numeric: tabular-nums;
+}
+
+#best-lap, .fastest {
+  color: #bd83ff;
+}
 
 #track {
   display: block;
@@ -113,13 +136,11 @@ button:active {
   border-radius: 15px;
 }
 
-/* ENGINEERING CONTROLS */
-
 .controls {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
-  margin-top: 18px;
+  margin-top: 15px;
 }
 
 #accelerate {
@@ -134,30 +155,42 @@ button:active {
   background: #1565c0;
 }
 
+#boost.active {
+  background: #00aaff;
+  box-shadow: 0 0 18px #0088ff;
+}
+
 #aero {
   background: #555;
 }
 
 #race-message {
   color: #ddd;
-  padding: 15px;
-  font-size: 14px;
+  min-height: 42px;
 }
 
-/* RESULTS */
-
-#results-screen {
+.lap-history {
+  margin-top: 20px;
   background: #20232d;
-  padding: 40px;
-  border-radius: 15px;
+  padding: 15px;
+  border-radius: 12px;
+}
+
+.lap-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px;
+  border-bottom: 1px solid #444;
 }
 
 #final-time {
-  color: #ffd700;
-  font-size: 35px;
+  color: #bd83ff;
+  font-size: 38px;
 }
 
-/* MOBILE PHONES */
+#final-laps {
+  margin: 20px 0;
+}
 
 @media (max-width: 600px) {
   body {
@@ -168,17 +201,12 @@ button:active {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .dashboard div {
-    padding: 10px 4px;
-    font-size: 13px;
-  }
-
   .controls {
     gap: 8px;
   }
 
   button {
-    padding: 18px 8px;
+    padding: 18px 6px;
     font-size: 12px;
   }
 }
