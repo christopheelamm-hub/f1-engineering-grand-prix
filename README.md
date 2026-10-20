@@ -1,1 +1,3 @@
-F1 Engineering GP v6 — improved original circuits, Soft/Medium/Hard tyre selection with wear, QUIT RACE on any lap, and existing Firebase live leaderboard. Upload the five files to the same GitHub Pages repository. The Firebase track IDs and rules remain unchanged. Note: racing physics are simplified for educational gameplay; layouts are fictional, not reproductions of actual Grand Prix circuits.
+F1 Engineering GP V7 — Stronger tyre degradation and meaningful overspeed penalties.
+At excessive corner entry speed, the car runs off track, slows sharply and loses 1.1–2.8 seconds. Tyre wear accumulates by distance and aggressive cornering; worn tyres have reduced grip. Quit race, Firebase leaderboard and all existing circuits remain.
+Upload all five files to the root of your existing GitHub repository.
