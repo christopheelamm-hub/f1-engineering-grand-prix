@@ -52,10 +52,11 @@ function update(dt){
  const overspeed=Math.max(0,state.speed-limit);
  const activeCorner=severity>.055;
  if(activeCorner&&overspeed>0){
-   const ratio=overspeed/Math.max(limit,1);
-   const strength=1.8+Math.min(4,ratio*4)+Math.min(2,severity*2);
-   const loss=overspeed*(1-Math.exp(-strength*dt));
-   state.speed=Math.max(0,state.speed-loss);
+   // Proportional resistance with a hard deceleration-rate ceiling.
+   // This avoids a near-instant collapse to zero when entering hairpins.
+   const resistance=Math.min(68,8+overspeed*.22);
+   const loss=Math.min(overspeed,resistance*dt);
+   state.speed=Math.max(input.gas?Math.min(limit,35):0,state.speed-loss);
    $('status').textContent='TOO FAST FOR CORNER · '+Math.round(overspeed)+
      ' km/h over safe speed! Losing '+Math.round(loss/Math.max(dt,.001))+' km/h per second';
  }else if(activeCorner){
