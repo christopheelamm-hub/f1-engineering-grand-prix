@@ -6,7 +6,7 @@ const circuits={
  grand:[[130,130],[350,110],[480,145],[660,100],[715,195],[610,260],[690,350],[590,415],[400,375],[285,435],[110,370],[175,285],[90,220]]
 };
 const state={running:false,finished:false,started:false,distance:0,speed:0,battery:80,aero:'LOW DRAG',time:0,lapStart:0,laps:[],best:Infinity};
-const input={gas:false,brake:false,boost:false};let points=[],length=0,prev=null,boosting=false;
+const input={gas:false,brake:false,boost:false};let points=[],length=0,prev=null,boosting=false,frameId=null,raceGeneration=0;
 function makeTrack(){const anchors=circuits[$('circuit').value],samples=[];for(let i=0;i<anchors.length;i++){const p0=anchors[(i-1+anchors.length)%anchors.length],p1=anchors[i],p2=anchors[(i+1)%anchors.length],p3=anchors[(i+2)%anchors.length];for(let j=0;j<24;j++){let t=j/24,t2=t*t,t3=t2*t;let coord=k=>.5*((2*p1[k])+(-p0[k]+p2[k])*t+(2*p0[k]-5*p1[k]+4*p2[k]-p3[k])*t2+(-p0[k]+3*p1[k]-3*p2[k]+p3[k])*t3);samples.push({x:coord(0),y:coord(1)})}}points=[];length=0;for(let i=0;i<samples.length;i++){const a=samples[i],b=samples[(i+1)%samples.length];let segment=Math.hypot(b.x-a.x,b.y-a.y);points.push({...a,d:length,seg:segment});length+=segment}draw()}
 function pos(distance){let d=((distance%length)+length)%length;let lo=0,hi=points.length-1;while(lo<hi){let mid=(lo+hi+1)>>1;if(points[mid].d<=d)lo=mid;else hi=mid-1}const a=points[lo],b=points[(lo+1)%points.length],t=Math.min(1,(d-a.d)/Math.max(a.seg,.0001));return{x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,angle:Math.atan2(b.y-a.y,b.x-a.x),index:lo}}
 function corner(distance){const before=pos(distance-22),after=pos(distance+22);let diff=Math.atan2(Math.sin(after.angle-before.angle),Math.cos(after.angle-before.angle));return Math.abs(diff)>.18}
@@ -23,10 +23,53 @@ if(inCorner&&state.speed>limit){state.speed=Math.max(limit,state.speed-210*dt);$
 const old=state.distance;state.distance+=state.speed/3.6*dt;state.time+=dt;
 if(Math.floor(state.distance/length)>Math.floor(old/length)){const crossing=(Math.floor(old/length)+1)*length;const f=(crossing-old)/(state.distance-old);const crossingTime=state.time-dt+f*dt;const lapTime=crossingTime-state.lapStart;state.lapStart=crossingTime;state.laps.push(lapTime);state.best=Math.min(state.best,lapTime);history();if(state.laps.length===3){finish();return}}
 $('lap').textContent=(state.laps.length+1)+' / 3';$('current').textContent=fmt(state.time-state.lapStart);$('best').textContent=fmt(state.best);$('speed').textContent=Math.round(state.speed)+' km/h';$('batteryFill').style.width=state.battery+'%';$('batteryText').textContent=Math.round(state.battery)+'%';$('boost').classList.toggle('active',boosting)}
-function frame(t){if(!state.running)return;if(prev===null)prev=t;let dt=Math.min((t-prev)/1000,.04);prev=t;update(dt);draw();if(state.running)requestAnimationFrame(frame)}
-function finish(){state.running=false;state.finished=true;boosting=false;Object.keys(input).forEach(k=>input[k]=false);$('overlay').hidden=false;$('overlayText').textContent='FINISHED · BEST LAP '+fmt(state.best);window.dispatchEvent(new CustomEvent('f1-race-finished',{detail:{name:$('name').value.trim()||'Driver',track:$('circuit').value,time:state.best}}));$('start').textContent='RACE AGAIN';$('circuit').disabled=false;$('name').disabled=false;draw()}
-function start(){state.running=true;state.finished=false;state.distance=0;state.speed=0;state.battery=80;state.aero='LOW DRAG';state.time=0;state.lapStart=0;state.laps=[];state.best=Infinity;prev=null;boosting=false;Object.keys(input).forEach(k=>input[k]=false);$('aero').innerHTML='AERO<br><small>LOW DRAG</small>';$('current').textContent='0:00.000';$('best').textContent='--:--.---';$('lap').textContent='1 / 3';$('history').textContent='No completed laps yet';$('circuit').disabled=true;$('name').disabled=true;$('overlay').hidden=true;requestAnimationFrame(frame)}
+function frame(t,generation){
+ if(!state.running||generation!==raceGeneration)return;
+ if(prev===null)prev=t;
+ let dt=Math.min((t-prev)/1000,.04);prev=t;
+ update(dt);draw();
+ if(state.running&&generation===raceGeneration)frameId=requestAnimationFrame(next=>frame(next,generation));
+}
+function stopAnimation(){raceGeneration++;if(frameId!==null)cancelAnimationFrame(frameId);frameId=null;prev=null;}
+function finish(){stopAnimation();state.running=false;state.finished=true;boosting=false;Object.keys(input).forEach(k=>input[k]=false);$('quit').hidden=true;$('overlay').hidden=false;$('overlayText').textContent='FINISHED · BEST LAP '+fmt(state.best);window.dispatchEvent(new CustomEvent('f1-race-finished',{detail:{name:$('name').value.trim()||'Driver',track:$('circuit').value,time:state.best}}));$('start').textContent='RACE AGAIN';$('circuit').disabled=false;$('name').disabled=false;draw()}
+function start(){stopAnimation();state.running=true;state.finished=false;state.distance=0;state.speed=0;state.battery=80;state.aero='LOW DRAG';state.time=0;state.lapStart=0;state.laps=[];state.best=Infinity;prev=null;boosting=false;Object.keys(input).forEach(k=>input[k]=false);$('aero').innerHTML='AERO<br><small>LOW DRAG</small>';$('aero').classList.remove('active');$('current').textContent='0:00.000';$('best').textContent='--:--.---';$('lap').textContent='1 / 3';$('history').textContent='No completed laps yet';$('circuit').disabled=true;$('name').disabled=true;$('overlay').hidden=true;$('quit').hidden=false;frameId=requestAnimationFrame(t=>frame(t,raceGeneration))}
+function quitRace(){
+ if(!state.running)return;
+ stopAnimation();state.running=false;state.finished=false;boosting=false;
+ Object.keys(input).forEach(k=>input[k]=false);
+ state.distance=0;state.speed=0;state.time=0;state.lapStart=0;
+ state.laps=[];state.best=Infinity;state.battery=80;state.aero='LOW DRAG';
+ $('aero').innerHTML='AERO<br><small>LOW DRAG</small>';$('aero').classList.remove('active');
+ $('lap').textContent='1 / 3';$('current').textContent='0:00.000';
+ $('best').textContent='--:--.---';$('speed').textContent='0 km/h';
+ $('batteryFill').style.width='80%';$('batteryText').textContent='80%';
+ $('history').textContent='No completed laps yet';
+ $('boost').classList.remove('active');
+ $('circuit').disabled=false;$('name').disabled=false;
+ $('quit').hidden=true;$('overlay').hidden=false;
+ $('overlayText').textContent='RACE ABANDONED · TRY AGAIN';
+ $('start').textContent='START RACE';
+ $('status').textContent='Race abandoned. No lap time was submitted.';
+ draw();
+}
+// Respond to both touch and mouse without triggering the action twice.
+const quitButton=$('quit');
+quitButton.addEventListener('pointerdown',e=>{
+  if(!state.running)return;
+  e.preventDefault();
+  quitRace();
+});
+quitButton.addEventListener('click',e=>{
+  if(e.detail===0)quitRace(); // keyboard accessibility
+});
 $('start').addEventListener('click',start);$('circuit').addEventListener('change',()=>{if(!state.running){state.distance=0;makeTrack()}});
 function hold(id,key){const el=$(id);el.addEventListener('pointerdown',e=>{e.preventDefault();if(!state.running)return;el.setPointerCapture(e.pointerId);input[key]=true});for(const ev of ['pointerup','pointercancel','lostpointercapture'])el.addEventListener(ev,()=>input[key]=false)}hold('gas','gas');hold('brake','brake');hold('boost','boost');
-$('aero').addEventListener('click',()=>{if(!state.running)return;state.aero=state.aero==='LOW DRAG'?'HIGH DOWNFORCE':'LOW DRAG';$('aero').innerHTML='AERO<br><small>'+state.aero+'</small>'});
-const keys={ArrowUp:'gas',ArrowDown:'brake',' ':'boost'};document.addEventListener('keydown',e=>{if(!state.running)return;if(keys[e.key]){e.preventDefault();input[keys[e.key]]=true}if(e.key.toLowerCase()==='a'&&!e.repeat)$('aero').click()});document.addEventListener('keyup',e=>{if(keys[e.key])input[keys[e.key]]=false});window.addEventListener('blur',()=>Object.keys(input).forEach(k=>input[k]=false));makeTrack();
+function toggleAero(){
+ if(!state.running)return;
+ state.aero=state.aero==='LOW DRAG'?'HIGH DOWNFORCE':'LOW DRAG';
+ $('aero').innerHTML='AERO<br><small>'+state.aero+'</small>';
+ $('aero').classList.toggle('active',state.aero==='HIGH DOWNFORCE');
+}
+$('aero').addEventListener('pointerdown',e=>{e.preventDefault();toggleAero()});
+$('aero').addEventListener('click',e=>{if(e.detail===0)toggleAero()});
+const keys={ArrowUp:'gas',ArrowDown:'brake',' ':'boost'};document.addEventListener('keydown',e=>{if(!state.running)return;if(keys[e.key]){e.preventDefault();input[keys[e.key]]=true}if(e.key.toLowerCase()==='a'&&!e.repeat){e.preventDefault();toggleAero()}});document.addEventListener('keyup',e=>{if(keys[e.key])input[keys[e.key]]=false});window.addEventListener('blur',()=>Object.keys(input).forEach(k=>input[k]=false));makeTrack();
